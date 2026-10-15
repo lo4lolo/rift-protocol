@@ -1,0 +1,29 @@
+name: Multiplayer container check
+on:
+  push:
+    branches: [main]
+    paths: ['Dockerfile', '.dockerignore', '*.mjs', 'package*.json', 'public/**', 'scripts/remote-smoke.mjs', '.github/workflows/server.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: docker build -t rift-server:test .
+      - run: docker run -d --name rift-check -p 127.0.0.1:4175:4175 rift-server:test
+      - name: Check server and multiplayer
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4175/health; then break; fi
+            sleep 1
+          done
+          node scripts/remote-smoke.mjs
+      - if: always()
+        run: docker logs rift-check; docker rm -f rift-check
