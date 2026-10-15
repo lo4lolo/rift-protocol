@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>짭로란트 · RIFT PROTOCOL</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script type="importmap">
+      { "imports": { "three": "/vendor/three.module.js" } }
+    </script>
+  </head>
+  <body>
+    <canvas id="game" aria-label="3D 전술 슈팅 게임"></canvas>
+    <div class="grain"></div>
+    <main id="menu">
+      <nav>
+        <strong>R / P</strong><span>PROJECT 45 / TACTICAL FPS</span
+        ><span class="build">LOCAL PLAYTEST · 0.53</span
+        ><button id="settings-open" class="compact">설정</button>
+      </nav>
+      <section class="hero">
+        <div class="eyebrow">5 VS 5 · ONE LIFE · YOUR CALL</div>
+        <h1>RIFT<br /><em>PROTOCOL</em></h1>
+        <p class="subtitle">한 번의 판단이 라운드를 바꾼다.</p>
+        <p class="intro">
+          해안 연구소에 진입하세요. 팀과 함께 길을 열고,<br />코어를 설치하거나
+          마지막 순간까지 지켜내세요.
+        </p>
+        <div class="map-tag">
+          <i></i> BREAKWATER <span>해안 연구소 / A·B 두 거점</span>
+        </div>
+      </section>
+      <section class="join-panel">
+        <div class="section-label">01 / SELECT YOUR AGENT</div>
+        <div id="agents"></div>
+        <div class="section-label">02 / JOIN THE OPERATION</div>
+        <label
+          >콜사인<input
+            id="name"
+            maxlength="16"
+            value="새벽"
+            autocomplete="off" /></label
+        ><label
+          >방 코드 <span>친구와 같은 코드를 입력하세요</span
+          ><input
+            id="code"
+            maxlength="10"
+            value="RIFT45"
+            autocomplete="off" /></label
+        ><button id="join" class="primary">작전실 입장 <span>↗</span></button>
+        <p id="connection" role="status">
+          같은 서버 · 같은 방 코드로 함께 플레이
+        </p>
+        <div class="keys">
+          <b>W A S D</b> 이동 <b>마우스</b> 조준·발사<br /><b>B</b> 구매
+          <b>Q</b> 능력 <b>F</b> 설치·해체
+        </div>
+      </section>
+      <footer>
+        <span>짭로란트 · 독자 제작 전술 FPS 프로토타입</span
+        ><span>HEADPHONES RECOMMENDED ── 45</span>
+      </footer>
+    </main>
+    <section id="lobby" class="overlay hidden">
+      <div class="modal">
+        <div class="eyebrow">OPERATION ROOM</div>
+        <h2>작전 준비</h2>
+        <p id="roomlabel"></p>
+        <div id="roster"></div>
+        <div class="buttons">
+          <button id="team-atk">공격팀으로</button
+          ><button id="team-def">수비팀으로</button
+          ><button id="remove-bots">훈련봇 비우기</button>
+        </div>
+        <label class="match-option"
+          ><input type="checkbox" id="overtime" /> 12:12 동점이면 2점 차
+          연장전</label
+        >
+        <p class="muted">
+          연장전은 매 라운드 공수 교대 · 5,000 크레딧으로 장비 초기화
+        </p>
+        <div class="buttons">
+          <button id="bots">훈련봇으로 5대5 채우기</button
+          ><button id="start" class="primary">작전 시작 →</button>
+        </div>
+        <p class="muted">
+          방장만 시작할 수 있습니다. 친구가 모두 입장한 뒤 시작하세요.
+        </p>
+      </div>
+    </section>
+    <div id="scope" class="hidden"><i></i></div>
+    <section id="match-result" class="overlay hidden">
+      <div class="modal">
+        <div class="eyebrow">MATCH COMPLETE</div>
+        <h2 id="match-title">작전 종료</h2>
+        <p id="match-score"></p>
+        <div class="buttons">
+          <button id="rematch" class="primary">같은 구성으로 다시 시작</button
+          ><button id="back-lobby">작전실로 돌아가기</button>
+        </div>
+        <p id="match-help" class="muted"></p>
+      </div>
+    </section>
+    <section id="hud" class="hidden">
+      <button id="settings-game" class="compact">설정 · 감도/소리</button>
+      <div class="top-score">
+        <span id="atk">0</span>
+        <div>
+          <small id="round">ROUND 01</small><strong id="timer">00:20</strong
+          ><small id="phase">구매 단계</small>
+        </div>
+        <span id="def">0</span>
+      </div>
+      <div id="team-label"></div>
+      <canvas id="minimap" width="200" height="200"></canvas>
+      <div id="feed"></div>
+      <div id="banner"></div>
+      <div id="crosshair"><i></i><i></i><i></i><i></i></div>
+      <div id="hitmarker">╳</div>
+      <div id="hit-info"></div>
+      <div id="damage"></div>
+      <div id="blind"></div>
+      <div id="objective"></div>
+      <div id="progress"><i></i></div>
+      <div class="bottom">
+        <div>
+          <small>HEALTH / SHIELD</small
+          ><strong id="health">100 <em>0</em></strong>
+        </div>
+        <div class="abilities">
+          <small id="agent-name">VEIL</small
+          ><strong id="ability">Q · 연막</strong
+          ><span id="secondary">C · 추가 능력</span
+          ><span id="ultimate">V · 궁극기</span
+          ><span>F 설치·해체　B 구매　R 재장전</span>
+        </div>
+        <div class="ammo">
+          <small id="weapon">클래식</small
+          ><strong id="ammo">12 <em>/ 48</em></strong>
+        </div>
+      </div>
+      <div id="net"></div>
+      <button id="resume">클릭하여 전장에 진입</button>
+      <div id="scoreboard" class="hidden"></div>
+      <aside id="combat-report" class="hidden" aria-label="전투 보고서"></aside>
+      <div id="spectate"></div>
+      <div id="assist-notice" class="hidden" role="status"></div>
+      <div id="spectator-controls" class="hidden">
+        <button id="spectator-prev">[ 이전 팀원</button
+        ><button id="spectator-next">다음 팀원 ]</button>
+      </div>
+    </section>
+    <section id="shop" class="overlay hidden">
+      <div class="modal shop">
+        <div class="eyebrow">LOADOUT / 구매 단계</div>
+        <h2>다음 한 발을 준비하세요.</h2>
+        <p id="money"></p>
+        <div id="weapons"></div>
+        <h3>팀 구매 지원</h3>
+        <div id="weapon-requests"></div>
+        <div id="team-purchases"></div>
+        <button id="close-shop">전장으로 돌아가기 · B / ESC</button>
+      </div>
+    </section>
+    <section id="settings" class="overlay hidden">
+      <div class="modal settings-panel">
+        <div class="eyebrow">PERSONAL SETUP</div>
+        <h2>나에게 맞는 전투 감각</h2>
+        <label
+          >마우스 감도 <output id="sensitivity-value">1.00</output
+          ><input
+            id="sensitivity"
+            type="range"
+            min="0.2"
+            max="3"
+            step="0.05"
+            value="1"
+        /></label>
+        <label
+          >전체 음량 <output id="volume-value">70%</output
+          ><input
+            id="volume"
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value="0.7"
+        /></label>
+        <label
+          >조준선 색상<select id="crosshair-color">
+            <option value="#b2ffe0">민트</option>
+            <option value="#ffffff">흰색</option>
+            <option value="#ffeb78">노랑</option>
+            <option value="#ff7de4">분홍</option>
+          </select></label
+        >
+        <label
+          >그래픽 품질<select id="quality">
+            <option value="high">높음 · 그림자 표시</option>
+            <option value="low">가벼움 · 낮은 해상도, 그림자 끄기</option>
+          </select></label
+        >
+        <p class="muted">
+          설정은 현재 브라우저에 저장됩니다. Esc로 돌아갈 수 있습니다.
+        </p>
+        <button id="settings-close" class="primary">적용하고 돌아가기</button>
+      </div>
+    </section>
+    <aside id="team-chat" hidden aria-label="팀 채팅">
+      <div id="chat-messages" role="log" aria-live="polite"></div>
+      <form id="chat-form" hidden>
+        <div id="chat-status" role="status"></div>
+        <label for="chat-input">팀 채팅 · Enter 전송 / Esc 닫기</label>
+        <input
+          id="chat-input"
+          maxlength="200"
+          autocomplete="off"
+          placeholder="아군에게 전할 내용"
+        />
+      </form>
+    </aside>
+    <script type="module" src="/client.mjs"></script>
+  </body>
+</html>

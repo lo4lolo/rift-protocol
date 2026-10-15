@@ -1,0 +1,93 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { Game } from "../game.mjs";
+test("team choice is lobby-only and respects five-player capacity", () => {
+  const g = new Game("FLOW");
+  for (let i = 0; i < 6; i++) g.add("p" + i, "P" + i);
+  assert.equal(g.chooseTeam("p1", 0), true);
+  assert.equal(g.chooseTeam("p3", 0), true);
+  assert.equal(g.chooseTeam("p5", 0), false);
+  assert.equal(g.chooseTeam("p5", "0"), false);
+  assert.equal(
+    new Set([...g.players.values()].filter((p) => p.team === 0).map((p) => p.x))
+      .size,
+    5,
+  );
+  g.start("p0");
+  assert.equal(g.chooseTeam("p0", 1), false);
+});
+test("only lobby owner configures overtime and removes bots", () => {
+  const g = new Game("FLOW");
+  g.add("a", "A");
+  g.add("b", "B");
+  g.add("bot", "Bot", "veil", true);
+  assert.equal(g.configure("b", true), false);
+  assert.equal(g.configure("a", "true"), false);
+  assert.equal(g.configure("a", true), true);
+  assert.equal(g.removeBots("b"), false);
+  assert.equal(g.removeBots("a"), true);
+  assert.equal(g.players.size, 2);
+  g.start("a");
+  assert.equal(g.configure("a", false), false);
+  assert.equal(g.removeBots("a"), false);
+});
+test("overtime swaps sides each round, resets economy and requires two-point lead", () => {
+  const g = new Game("FLOW");
+  const a = g.add("a", "A");
+  g.add("b", "B");
+  g.configure("a", true);
+  g.start("a");
+  g.round = 24;
+  g.score = [12, 12];
+  a.credits = 9000;
+  a.primary = "rifle";
+  a.ultimate = 6;
+  g.nextRound();
+  assert.equal(g.round, 25);
+  assert.equal(a.team, 1);
+  assert.equal(a.credits, 5000);
+  assert.equal(a.primary, null);
+  assert.equal(a.ultimate, 0);
+  g.phase = "live";
+  g.finish(1, "test");
+  g.tick(6.1);
+  assert.equal(g.phase, "buy");
+  assert.equal(g.round, 26);
+  assert.equal(a.team, 0);
+  assert.deepEqual(g.score, [13, 12]);
+  g.phase = "live";
+  g.finish(1, "test");
+  g.tick(6.1);
+  assert.deepEqual(g.score, [13, 13]);
+  assert.equal(g.round, 27);
+  g.phase = "live";
+  g.finish(1, "test");
+  g.tick(6.1);
+  assert.equal(g.round, 28);
+  assert.deepEqual(g.score, [14, 13]);
+  g.phase = "live";
+  g.finish(0, "test");
+  g.tick(6.1);
+  assert.equal(g.phase, "match");
+  assert.deepEqual(g.score, [15, 13]);
+});
+test("match return and rematch preserve connections but clear match state", () => {
+  const g = new Game("FLOW");
+  g.add("a", "A");
+  g.add("b", "B");
+  g.start("a");
+  assert.equal(g.returnToLobby("a"), false);
+  g.phase = "match";
+  g.score = [13, 8];
+  g.winner = 0;
+  assert.equal(g.returnToLobby("b"), false);
+  assert.equal(g.returnToLobby("a"), true);
+  assert.equal(g.phase, "lobby");
+  assert.equal(g.players.size, 2);
+  assert.equal(g.spike, null);
+  g.chooseTeam("a", 1);
+  g.start("a");
+  assert.equal(g.round, 1);
+  assert.deepEqual(g.score, [0, 0]);
+  assert.equal(g.players.get("a").credits, 800);
+});

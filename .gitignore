@@ -1,0 +1,10 @@
+node_modules/
+*.log
+test-results/
+.runtime/
+dist/
+releases/
+evidence/
+research/
+.env
+.env.*
